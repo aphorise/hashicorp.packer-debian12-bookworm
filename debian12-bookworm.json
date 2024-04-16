@@ -1,0 +1,91 @@
+{
+"variables":
+{
+	"name": "vbox-debian-x86_64-12.5.0",
+	"debian_version": "12.5.0",
+	"build_name": "debian-x86_64-12.5.0",
+	"cpu_cores_build": "1",
+	"memory_build": "1024",
+	"disk_size": "6144",
+	"headless": "true",
+	"iso_url": "https://cdimage.debian.org/cdimage/release/{{user `debian_version`}}/amd64/iso-cd/debian-{{user `debian_version`}}-amd64-netinst.iso",
+	"sha512": "33c08e56c83d13007e4a5511b9bf2c4926c4aa12fd5dd56d493c0653aecbab380988c5bf1671dbaea75c582827797d98c4a611f7fb2b131fbde2c677d5258ec9",
+	"ssh_username": "vagrant",
+	"ssh_password": "vagrant",
+	"ssh_port": "22",
+	"hostname": "debian-12",
+	"domain": "local.domain",
+	"lang": "us",
+	"langutf8": "en_US.UTF-8"
+},
+"builders":
+[{
+	"type": "virtualbox-iso",
+	"name": "vbox-{{ user `build_name` }}",
+	"vm_name": "{{ user `build_name` }}-vbox",
+	"guest_os_type": "Debian_64",
+	"guest_additions_mode": "upload",
+	"headless": "{{user `headless`}}",
+	"http_directory": "ui-input.http",
+	"vboxmanage":
+	[
+		["modifyvm", "{{.Name}}", "--memory", "2048"],
+		["modifyvm", "{{.Name}}", "--cpus", "2"],
+		["modifyvm", "{{.Name}}", "--vram", "32"],
+		["modifyvm", "{{.Name}}", "--nic1", "nat"],
+		["modifyvm", "{{.Name}}", "--nic2", "null"],
+		["modifyvm", "{{.Name}}", "--nictype1", "virtio"],
+		["modifyvm", "{{.Name}}", "--nictype2", "virtio"],
+		["modifyvm", "{{.Name}}", "--nat-localhostreachable1", "on"],
+		["modifyvm", "{{.Name}}", "--nat-localhostreachable2", "on"]
+	],
+	"virtualbox_version_file": ".vbox_version",
+	"disk_size": "{{user `disk_size`}}",
+	"hard_drive_interface": "sata",
+	"hard_drive_discard": true,
+	"iso_checksum": "sha512:{{user `sha512`}}",
+	"iso_url": "{{user `iso_url`}}",
+	"ssh_username": "{{user `ssh_password`}}",
+	"ssh_password": "{{user `ssh_username`}}",
+	"ssh_wait_timeout": "20m",
+	"ssh_port": "{{user `ssh_port`}}",
+	"boot_wait": "5s",
+	"boot_command":
+	[
+		"<tab>",
+		"interface=auto auto=true ",
+		"preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/pressed_debian12-bookworm.cfg ",
+		"language={{user `langutf8`}} ",
+		"country=NL ",
+		"locale=en_US.UTF-8 ",
+		"keymap={{user `lang`}} ",
+		"hostname={{user `hostname`}} ",
+		"domain={{ user `domain` }} ",
+		"fb=false ",
+		"<enter>"
+	],
+	"shutdown_command": "echo vagrant | sudo -S poweroff",
+	"post_shutdown_delay": "2m"
+}],
+"provisioners":
+[{
+	"type": "shell",
+	"execute_command": "echo 'vagrant' | {{.Vars}} sudo -E -S bash '{{.Path}}'",
+	"scripts":
+	[
+		"os-scripts.ud/1.sshd.sh",
+		"os-scripts.ud/2.sudoers.sh",
+		"os-scripts.ud/3.install_common_tools.sh",
+		"os-scripts.ud/4.vagrant.sh",
+		"os-scripts.ud/5.vbaddguest.sh",
+		"os-scripts.ud/6.cleanup.sh"
+	]
+}],
+"post-processors":
+[{
+	"type": "vagrant",
+	"output": "{{.BuildName}}.box",
+	"compression_level": "9",
+	"keep_input_artifact": false
+}]
+}
